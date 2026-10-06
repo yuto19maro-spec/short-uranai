@@ -227,10 +227,14 @@ def parse_rich(line):
     return parts
 
 
-def draw_cta_line(canvas, line, base_style, cy, chars):
+def cta_size(lines):
+    """CTA内の全行で文字サイズを揃える (一番長い行に合わせる)"""
+    return min(fit_size(l.replace("{", "").replace("}", ""), "cta_brown", CTA_SIZE, W - 50) for l in lines)
+
+
+def draw_cta_line(canvas, line, base_style, cy, chars, size):
     parts = parse_rich(line)
     plain = "".join(p for p, _ in parts)
-    size = fit_size(plain, base_style, CTA_SIZE, W - 50)
     f = font("heavy", size)
     total = f.getlength(plain)
     x = (W - total) / 2
@@ -450,10 +454,15 @@ def draw_segment(canvas, sg, lt, rain_layer):
         tt = (ct - tm["cta_wipe"] * 0.4) / tm["cta_cps"]
         if tt >= 0:
             shown = int(tt) + 1
-            for li, line in enumerate(cta["lines"][:3]):
+            lines = cta["lines"][:3]
+            size = cta_size(tuple(lines))
+            # 2行のときは帯の中で上下中央に寄せる
+            ys = CTA_LINES_Y if len(lines) == 3 else [(CTA_LINES_Y[0] + CTA_LINES_Y[1]) / 2 + 2,
+                                                       (CTA_LINES_Y[1] + CTA_LINES_Y[2]) / 2 + 2]
+            for li, line in enumerate(lines):
                 n = len(line.replace("{", "").replace("}", ""))
                 color = (cta.get("colors") or ["red", "brown", "red"])[li]
-                draw_cta_line(canvas, line, "cta_" + color, CTA_LINES_Y[li], min(n, shown))
+                draw_cta_line(canvas, line, "cta_" + color, ys[li], min(n, shown), size)
                 shown -= n
                 if shown <= 0:
                     break
