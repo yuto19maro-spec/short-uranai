@@ -1,0 +1,5 @@
+fonts/
+out/
+bg/*.mp4
+__pycache__/
+*.video.mp4
