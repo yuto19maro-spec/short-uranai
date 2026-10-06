@@ -476,7 +476,6 @@ def render(script_path, out_path, preview=None, start=None, end=None):
         frames = range(int((start or 0) * FPS), int((end or total) * FPS))
 
     rain = Rain(density=script.get("rain_density", 9)) if script.get("rain", True) else None
-    brightness = script.get("bg_brightness", 1.0)
 
     enc = None
     if preview is None:
@@ -503,6 +502,8 @@ def render(script_path, out_path, preview=None, start=None, end=None):
                 reader = BgReader(active[1], active[2] + skip)
             cur = active
         bg = reader.read() if reader else np.full((H, W, 3), 20, np.uint8)
+        sg = next((x for x in segs if x["start"] <= t < x["end"]), segs[-1])
+        brightness = sg["seg"].get("bg_brightness", script.get("bg_brightness", 1.0))
         if brightness != 1.0:
             bg = np.clip(bg.astype(np.float32) * brightness, 0, 255).astype(np.uint8)
         canvas = Image.fromarray(bg, "RGB").convert("RGBA")
@@ -510,7 +511,6 @@ def render(script_path, out_path, preview=None, start=None, end=None):
         rain_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         if rain:
             rain.step(rain_layer, fi)
-        sg = next((x for x in segs if x["start"] <= t < x["end"]), segs[-1])
         draw_segment(canvas, sg, t - sg["start"], rain_layer)
 
         rgb = canvas.convert("RGB")

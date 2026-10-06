@@ -38,5 +38,16 @@ python3 render.py scripts/template.json --preview 7.9     # 7.9秒時点の静�
 
 ## 背景動画
 
+### 静止画から作る（おすすめ）
+
+```bash
+python3 make_photo_bg.py bg/photos/sea1.png --horizon 0.477 --water-end 0.80 -o bg/sea1.mp4
+```
+
+ゆっくりズーム・水面の揺れ・反射のキラキラ・星のまたたきを付けて6秒の動画にする。
+`--horizon` は水平線の高さ（上から0〜1）、`--water-end` は波打ち際の高さ（これより下の砂浜は揺らさない）。
+
+### プログラム生成
+
 `make_sea_bg.py` が海の背景をプログラムで生成する（moon / sunset / rays / surface / deep）。
 実写素材を使う場合は `bg/` に mp4 を置いて台本の `bg` に指定するだけ（縦横比は自動でクロップ）。
