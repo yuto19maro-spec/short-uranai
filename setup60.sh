@@ -5,8 +5,11 @@ set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p fonts out work assets60/common
 if [ ! -f fonts/NotoSansJP.ttf ]; then
-  curl -fsSL -o fonts/NotoSansJP.ttf \
+  # 一時ファイルに落としてから置き換える (複数のチャットで同時に実行しても壊れない)
+  tmp="fonts/NotoSansJP.ttf.$$.part"
+  curl -fsSL -o "$tmp" \
     "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf"
+  mv -f "$tmp" fonts/NotoSansJP.ttf
 fi
 python3 -c "import PIL, numpy" 2>/dev/null || pip install -q pillow numpy
 python3 -c "import cv2" 2>/dev/null || pip install -q opencv-python-headless
