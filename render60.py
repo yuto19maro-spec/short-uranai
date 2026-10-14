@@ -567,7 +567,7 @@ def write_post(sc):
     if sc.get("pinned_comment"):
         cpath = os.path.join(ROOT, "out", sc["name"] + "_pinned_comment.txt")
         with open(cpath, "w", encoding="utf-8") as f:
-            f.write(sc["pinned_comment"] + "\n")
+            f.write(sc["pinned_comment"].translate(str.maketrans("", "", "“”\"")) + "\n")
     parts = [
         ("YouTube タイトル", sc.get("youtube_title")),
         ("YouTube 説明欄", sc.get("youtube_description", "VOICEVOX:冥鳴ひまり")),
@@ -578,10 +578,11 @@ def write_post(sc):
         ("TikTok 投稿者コメント（固定・150文字以内）", sc.get("tiktok_pinned_comment")),
     ]
     path = os.path.join(ROOT, "out", sc["name"] + "_post.txt")
+    no_quotes = str.maketrans("", "", "“”\"")    # 投稿文にダブルクォーテーションは使わない (ユーザー指定)
     with open(path, "w", encoding="utf-8") as f:
         for head, body in parts:
             if body:
-                f.write(f"■ {head}\n{body}\n\n")
+                f.write(f"■ {head}\n{body.translate(no_quotes)}\n\n")
     tk = sc.get("tiktok_pinned_comment") or ""
     if len(tk) > 150:
         print(f"注意: TikTok の固定コメントが {len(tk)} 文字あります（150文字まで）", file=sys.stderr)
