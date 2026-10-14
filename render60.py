@@ -54,7 +54,7 @@ TEXT_CY = 960                   # テロップ中心Y (画面中央)
 LINE_GAP = 1.32                 # 行送り (文字サイズ比)
 
 # ---------------------------------------------------------------- 尺
-PAD = 0.14                      # ナレーション後の間 (秒)
+PAD = 0.05                      # ナレーション後の間 (秒)。参考動画はほぼ切れ目なく読み続ける
 TITLE_EXTRA = 0.35              # タイトルカットだけ少し長く見せる
 VIDEO_LEN = 60.0                # 完成尺 (秒)。ぴったりこの長さで書き出す
 FIT_LO, FIT_HI = 57.8, 59.6     # ナレーションだけの合計がこの範囲に入るよう話速を調整
@@ -87,7 +87,8 @@ def load_script(path):
             fail(f"カット{i} に img がありません")
         if "say" not in c:
             raw = "".join(c["title"]) if "title" in c else c["text"]
-            c["say"] = strip_markup(raw).replace("\n", "")
+            # 引用符は VOICEVOX で不自然な間が入るので読みから外す
+            c["say"] = strip_markup(raw).replace("\n", "").translate(str.maketrans("", "", "“”「」"))
     return sc
 
 
@@ -135,8 +136,8 @@ def vv_post(path, params, body=None):
 def synth(text, speaker, speed):
     q = json.loads(vv_post("/audio_query", {"text": text, "speaker": speaker}))
     q["speedScale"] = speed
-    q["prePhonemeLength"] = 0.05
-    q["postPhonemeLength"] = 0.05
+    q["prePhonemeLength"] = 0.02
+    q["postPhonemeLength"] = 0.03
     q["outputSamplingRate"] = SR
     q["outputStereo"] = False
     return vv_post("/synthesis", {"speaker": speaker}, q)
@@ -206,6 +207,8 @@ def make_voices(sc):
         if new == speed:
             break
         speed = new
+    if speed > 1.3:
+        print(f"注意: 話速が {speed:.2f} と速めです。台本の読み上げ文字数を減らすと聞きやすくなります（kana コマンドで確認）")
     with open(os.path.join(voice_dir(sc), "speed.txt"), "w") as f:
         f.write(str(speed))
     return voices
@@ -368,6 +371,20 @@ def cmd_images(sc, args):
     print(f"\n未生成: {missing} 枚")
 
 
+def cmd_kana(sc, args):
+    """VOICEVOX が実際にどう読むかをカナで一覧表示する (読み間違いのチェック用)"""
+    try:
+        urllib.request.urlopen(VOICEVOX_URL + "/version", timeout=5).read()
+    except Exception:
+        fail(f"VOICEVOX に接続できません ({VOICEVOX_URL})。VOICEVOX アプリを起動してから再実行してください。")
+    chars = 0
+    for i, c in enumerate(sc["cuts"]):
+        q = json.loads(vv_post("/audio_query", {"text": c["say"], "speaker": sc["voice"]["speaker"]}))
+        print(f"{i:2d} {c['say']}\n   {q.get('kana', '')}")
+        chars += len(c["say"])
+    print(f"\n読み上げ文字数: {chars} 文字（目安 400 前後。多いと話速が上がりすぎる）")
+
+
 def cmd_voice(sc, args):
     make_voices(sc)
     print("ナレーション作成完了: " + voice_dir(sc))
@@ -463,12 +480,13 @@ def cmd_render(sc, args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("script")
-    ap.add_argument("command", choices=["images", "voice", "sheet", "render"])
+    ap.add_argument("command", choices=["images", "kana", "voice", "sheet", "render"])
     ap.add_argument("-o", "--output")
     ap.add_argument("--silent", action="store_true", help="VOICEVOX 無しで仮の尺で書き出す")
     args = ap.parse_args()
     sc = load_script(args.script)
-    {"images": cmd_images, "voice": cmd_voice, "sheet": cmd_sheet, "render": cmd_render}[args.command](sc, args)
+    {"images": cmd_images, "kana": cmd_kana, "voice": cmd_voice, "sheet": cmd_sheet,
+     "render": cmd_render}[args.command](sc, args)
 
 
 if __name__ == "__main__":

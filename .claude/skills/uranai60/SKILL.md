@@ -51,8 +51,12 @@ python3 render60.py scripts60/<name>.json images
 VOICEVOX アプリ（エンジン: http://127.0.0.1:50021）を起動してから:
 
 ```bash
+python3 render60.py scripts60/<name>.json kana      # 全カットの読み（カナ）と読み上げ文字数を確認
 python3 render60.py scripts60/<name>.json voice
 ```
+
+- kana を見て誤読があれば、そのカットに `say` を足して直す（直し方は `scripts60/TEMPLATE.md` の「ナレーションのルール」）
+- 話速が 1.3 を超えたら注意が出る。その場合は台本の文字数を減らすのが先（クラウドのセッションに相談してよい）
 
 - 話者は台本の `voice.speaker`（既定 14 = 冥鳴ひまり ノーマル。落ち着いた女性の声で参考動画に近い）。
   ID がこのPCの VOICEVOX と違う場合は `curl http://127.0.0.1:50021/speakers` で確認して台本を直す
