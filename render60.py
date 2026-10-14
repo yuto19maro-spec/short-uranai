@@ -133,8 +133,11 @@ def vv_post(path, params, body=None):
         return r.read()
 
 
-def synth(text, speaker, speed):
-    q = json.loads(vv_post("/audio_query", {"text": text, "speaker": speaker}))
+def query(text, speaker):
+    return json.loads(vv_post("/audio_query", {"text": text, "speaker": speaker}))
+
+
+def synth_query(q, speaker, speed):
     q["speedScale"] = speed
     q["prePhonemeLength"] = 0.02
     q["postPhonemeLength"] = 0.03
@@ -143,31 +146,105 @@ def synth(text, speaker, speed):
     return vv_post("/synthesis", {"speaker": speaker}, q)
 
 
-def voice_dir(sc):
-    return os.path.join(ROOT, "work", sc["name"], "voice")
-
-
-def voice_file(sc, c, speed):
-    h = hashlib.md5(f'{c["say"]}|{sc["voice"]["speaker"]}|{speed:.3f}'.encode()).hexdigest()[:10]
-    return os.path.join(voice_dir(sc), h + ".wav")
-
-
-def read_wav(path):
+def wav_bytes_to_array(b):
+    path = io.BytesIO(b)
     with wave.open(path) as w:
         a = np.frombuffer(w.readframes(w.getnframes()), np.int16).astype(np.float32) / 32768
         if w.getnchannels() == 2:
             a = a.reshape(-1, 2).mean(1)
         if w.getframerate() != SR:
             n = int(len(a) * SR / w.getframerate())
-            a = np.interp(np.linspace(0, len(a) - 1, n), np.arange(len(a)), a)
+            a = np.interp(np.linspace(0, len(a) - 1, n), np.arange(len(a)), a).astype(np.float32)
     return a
 
 
+def mora_count(q):
+    return sum(len(ap["moras"]) for ap in q["accent_phrases"])
+
+
+def mora_ends(q):
+    """各モーラの終わりの時刻 (直後の息継ぎも含める) と全体の長さ。speedScale=1 の秒"""
+    t = q["prePhonemeLength"]
+    ends = []
+    for ap in q["accent_phrases"]:
+        for m in ap["moras"]:
+            t += (m.get("consonant_length") or 0) + m["vowel_length"]
+            ends.append(t)
+        if ap.get("pause_mora"):
+            t += ap["pause_mora"]["vowel_length"]
+            ends[-1] = t
+    return ends, t + q["postPhonemeLength"]
+
+
+def sentence_groups(sc):
+    """"cont": true のカットは前のカットと同じ文として続けて読む"""
+    groups = []
+    for i, c in enumerate(sc["cuts"]):
+        if c.get("cont") and groups:
+            groups[-1].append(i)
+        else:
+            groups.append([i])
+    return groups
+
+
+def synth_group(sc, idxs, speed):
+    """1つの文をまとめて合成し、テロップの切り替わり位置 (モーラ境界) で切り分ける。
+    カットごとにバラバラに合成すると、文の途中で抑揚が途切れて不自然になるため。"""
+    spk = sc["voice"]["speaker"]
+    says = [sc["cuts"][i]["say"] for i in idxs]
+    q = query("".join(says), spk)
+    a = wav_bytes_to_array(synth_query(q, spk, speed))
+    if len(idxs) == 1:
+        return [a]
+    counts = [mora_count(query(t, spk)) for t in says]
+    ends, total = mora_ends(q)
+    if sum(counts) != len(ends):
+        print(f"注意: 「{''.join(says)}」の区切り位置を特定できないので、カットごとに分けて合成します")
+        return [wav_bytes_to_array(synth_query(query(t, spk), spk, speed)) for t in says]
+    scale = len(a) / SR / total
+    pieces, prev, k = [], 0, 0
+    for n in counts[:-1]:
+        k += n
+        cut = int(ends[k - 1] * scale * SR)
+        pieces.append(a[prev:cut])
+        prev = cut
+    pieces.append(a[prev:])
+    return pieces
+
+
+def voice_dir(sc):
+    return os.path.join(ROOT, "work", sc["name"], "voice")
+
+
+def group_files(sc, idxs, speed):
+    key = "|".join(sc["cuts"][i]["say"] for i in idxs)
+    h = hashlib.md5(f'{key}|{sc["voice"]["speaker"]}|{speed:.3f}|v2'.encode()).hexdigest()[:10]
+    return [os.path.join(voice_dir(sc), f"{h}_{j}.wav") for j in range(len(idxs))]
+
+
+def read_wav(path):
+    with open(path, "rb") as f:
+        return wav_bytes_to_array(f.read())
+
+
+def write_wav(path, a):
+    with wave.open(path, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(SR)
+        w.writeframes((np.clip(a, -1, 1) * 32767).astype(np.int16).tobytes())
+
+
+def continues(sc, k):
+    """カット k の次のカットが同じ文の続きか"""
+    return k + 1 < len(sc["cuts"]) and bool(sc["cuts"][k + 1].get("cont"))
+
+
 def natural_durations(sc, voices):
-    """ナレーションの長さ + 間 (引き伸ばす前)"""
+    """ナレーションの長さ + 間 (引き伸ばす前)。文の途中のカットには間を入れない"""
     d = []
-    for c, v in zip(sc["cuts"], voices):
-        t = len(v) / SR + PAD
+    for k, (c, v) in enumerate(zip(sc["cuts"], voices)):
+        t = len(v) / SR + (0 if continues(sc, k) else PAD)
         if "title" in c:
             t += TITLE_EXTRA
         d.append(max(t, 0.6))
@@ -175,30 +252,45 @@ def natural_durations(sc, voices):
 
 
 def cut_durations(sc, voices):
-    """各カットの尺。余りを均等に足して合計を VIDEO_LEN ちょうどにする"""
+    """各カットの尺。余りを文の切れ目に均等に足して合計を VIDEO_LEN ちょうどにする"""
     d = natural_durations(sc, voices)
     extra = VIDEO_LEN - sum(d)
     if extra < 0:
         fail(f"ナレーションが {sum(d):.1f} 秒あり {VIDEO_LEN:.0f} 秒に収まりません。台本を短くしてください。")
-    return [t + extra / len(d) for t in d]
+    ends = [k for k in range(len(d)) if not continues(sc, k)]
+    for k in ends:
+        d[k] += extra / len(ends)
+    return d
 
 
-def make_voices(sc):
-    """全カットのナレーションを作り、合計が FIT_LO〜FIT_HI 秒になるよう話速を自動調整する。"""
+def check_voicevox():
     try:
         urllib.request.urlopen(VOICEVOX_URL + "/version", timeout=5).read()
     except Exception:
         fail(f"VOICEVOX に接続できません ({VOICEVOX_URL})。VOICEVOX アプリを起動してから再実行してください。")
+
+
+def voices_at(sc, speed, create):
+    voices = [None] * len(sc["cuts"])
+    for g in sentence_groups(sc):
+        files = group_files(sc, g, speed)
+        if not all(os.path.exists(f) for f in files):
+            if not create:
+                return None
+            for f, piece in zip(files, synth_group(sc, g, speed)):
+                write_wav(f, piece)
+        for i, f in zip(g, files):
+            voices[i] = read_wav(f)
+    return voices
+
+
+def make_voices(sc):
+    """全カットのナレーションを作り、合計が FIT_LO〜FIT_HI 秒になるよう話速を自動調整する。"""
+    check_voicevox()
     os.makedirs(voice_dir(sc), exist_ok=True)
     speed = sc["voice"]["speed"]
     for _ in range(6):
-        voices = []
-        for i, c in enumerate(sc["cuts"]):
-            p = voice_file(sc, c, speed)
-            if not os.path.exists(p):
-                with open(p, "wb") as f:
-                    f.write(synth(c["say"], sc["voice"]["speaker"], speed))
-            voices.append(read_wav(p))
+        voices = voices_at(sc, speed, True)
         total = sum(natural_durations(sc, voices))
         print(f"話速 {speed:.2f} → ナレーション合計 {total:.1f} 秒")
         if FIT_LO <= total <= FIT_HI:
@@ -216,19 +308,14 @@ def make_voices(sc):
 
 def load_voices(sc, silent):
     if silent:
-        # VOICEVOX 無しの仮尺 (1文字 0.12秒)
+        # VOICEVOX 無しの仮尺 (1文字 0.11秒)
         return [np.zeros(int((0.11 * len(c["say"]) + 0.2) * SR), np.float32) for c in sc["cuts"]]
     sp = os.path.join(voice_dir(sc), "speed.txt")
-    if not os.path.exists(sp):
-        return make_voices(sc)
-    speed = float(open(sp).read())
-    voices = []
-    for c in sc["cuts"]:
-        p = voice_file(sc, c, speed)
-        if not os.path.exists(p):
-            return make_voices(sc)     # 台本が変わっていたら作り直す
-        voices.append(read_wav(p))
-    return voices
+    if os.path.exists(sp):
+        voices = voices_at(sc, float(open(sp).read()), False)
+        if voices is not None:
+            return voices
+    return make_voices(sc)     # 未作成 or 台本が変わっていたら作り直す
 
 
 # ================================================================ 画像
@@ -372,16 +459,15 @@ def cmd_images(sc, args):
 
 
 def cmd_kana(sc, args):
-    """VOICEVOX が実際にどう読むかをカナで一覧表示する (読み間違いのチェック用)"""
-    try:
-        urllib.request.urlopen(VOICEVOX_URL + "/version", timeout=5).read()
-    except Exception:
-        fail(f"VOICEVOX に接続できません ({VOICEVOX_URL})。VOICEVOX アプリを起動してから再実行してください。")
+    """VOICEVOX が実際にどう読むかを文ごとにカナで表示する (読み間違いのチェック用)"""
+    check_voicevox()
+    spk = sc["voice"]["speaker"]
     chars = 0
-    for i, c in enumerate(sc["cuts"]):
-        q = json.loads(vv_post("/audio_query", {"text": c["say"], "speaker": sc["voice"]["speaker"]}))
-        print(f"{i:2d} {c['say']}\n   {q.get('kana', '')}")
-        chars += len(c["say"])
+    for g in sentence_groups(sc):
+        text = "".join(sc["cuts"][i]["say"] for i in g)
+        q = query(text, spk)
+        print(f"{g[0]:2d}{'-' + str(g[-1]) if len(g) > 1 else '  '} {text}\n      {q.get('kana', '')}")
+        chars += len(text)
     print(f"\n読み上げ文字数: {chars} 文字（目安 400 前後。多いと話速が上がりすぎる）")
 
 
