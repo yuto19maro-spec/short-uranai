@@ -52,8 +52,7 @@
     {"text": "{コメント}で\n教えてください", "cont": true, "img": "common/comment_pen"},
     {"text": "[この動画は2度と]\n[表示されないため]", "say": "この動画は2度と表示されないため、", "img": "common/palm_stop"},
     {"text": "今のうちに\n{保存}しておきましょう", "cont": true, "img": "common/phone_save"},
-    {"text": "特に{1位}は\n今世でも", "img": "teaser"},
-    {"text": "{“龍神の加護”}を\n受けています", "say": "りゅうじんの加護を受けています", "cont": true, "img": "teaser"},
+    {"text": "{特に最後は}\n{“龍神そのもの”！}", "say": "特に最後は、りゅうじんそのもの", "img": "teaser"},
     {"text": "第5位", "img": "rank5"},
     {"text": "{水辺}や{雨}に\n不思議と惹かれる", "img": "r5_water"},
     {"text": "大事な日ほど\n{恵みの雨}が降る", "img": "r5_rain"},
@@ -75,7 +74,7 @@
     {"text": "この誕生日は\n{28日生まれ}", "say": "この誕生日は、にじゅうはちにち生まれ", "img": "r2_day"},
     {"text": "第1位", "img": "rank1"},
     {"text": "{天に愛された}\n{最強の強運}", "img": "r1_luck"},
-    {"text": "前世は\n{龍神そのもの}", "say": "前世は、りゅうじんそのもの", "img": "r1_ryujin"},
+    {"text": "前世は\n{“龍神そのもの”}", "say": "前世は、りゅうじんそのもの", "img": "r1_ryujin"},
     {"text": "今世でも\n{“龍神の加護”}を受ける魂", "say": "今世でも、りゅうじんの加護を受ける魂", "img": "r1_blessing"},
     {"text": "この誕生日は\n{コメント欄}", "img": "r1_comment"}
   ]
