@@ -1,0 +1,8 @@
+{
+  "_説明": "どの動画でも使い回すCTA用の画像。1度作れば assets60/common/ に置いて再利用する",
+  "images": {
+    "comment_pen": "Close-up of a hand writing with a pen in an open notebook on a white desk, soft natural daylight, shallow depth of field, clean minimal photo, vertical 9:16, no text, no letters",
+    "palm_stop": "A person in a light grey knit sweater holding one open palm toward the camera as a 'stop' gesture, face out of frame, soft studio light, shallow depth of field, vertical 9:16, no text",
+    "phone_save": "A hand with red nail polish holding a white smartphone in front of a pastel pink and yellow background, the phone screen shows a blurred city photo, flat bright studio photo, vertical 9:16, no text, no letters"
+  }
+}

@@ -3,3 +3,5 @@ out/
 bg/*.mp4
 __pycache__/
 *.video.mp4
+work/
+assets60/
