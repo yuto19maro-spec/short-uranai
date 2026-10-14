@@ -79,8 +79,8 @@ python3 render60.py scripts60/<name>.json render    # out/<name>.mp4 (ぴった�
 ## 4. 投稿時に使うもの（ユーザーに伝える）
 
 - YouTubeタイトル: 台本の `youtube_title`
-- **固定コメント**: `out/<name>_pinned_comment.txt`（1位の誕生日。動画は「この誕生日はコメント欄」で終わるので必ず固定する）
-- 概要欄に `VOICEVOX:<話者名>` のクレジットを書く（VOICEVOX の利用規約）
+- **投稿者コメント（固定）**: `out/<name>_pinned_comment.txt`。1位の答え＋「コメント欄に「開運ワード」と書き込むと〜」＋「他の人のコメントにいいねすると〜」の形。投稿したらすぐ書いて固定する（`scripts60/TEMPLATE.md` の「8. 投稿のしかた」）
+- 説明欄は参考チャンネルでは空。`VOICEVOX:<話者名>` のクレジットだけ書く（VOICEVOX の利用規約）。ハッシュタグはタイトルに入っている
 
 ## 5. 保存
 
