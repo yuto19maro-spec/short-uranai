@@ -43,7 +43,7 @@ python3 render60.py scripts60/<name>.json voice
 
 - 話者は台本の `voice.speaker`（既定 14 = 冥鳴ひまり ノーマル。落ち着いた女性の声で参考動画に近い）。
   ID がこのPCの VOICEVOX と違う場合は `curl http://127.0.0.1:50021/speakers` で確認して台本を直す
-- 合計が60秒を超えると話速を自動で上げて作り直す
+- ナレーションの合計が約58〜59.6秒になるよう話速を自動調整する（長ければ速く、短ければゆっくり）
 - 読み間違いがあれば、そのカットに `"say"`（読み上げ用のひらがな表記）を足して再実行。
   日付は「9日→ここのか」のように say で読みを指定してある
 
@@ -51,9 +51,11 @@ python3 render60.py scripts60/<name>.json voice
 
 ```bash
 python3 render60.py scripts60/<name>.json sheet     # out/<name>_sheet.jpg に全カットの一覧
-python3 render60.py scripts60/<name>.json render    # out/<name>.mp4 (約60秒) と固定コメント文
+python3 render60.py scripts60/<name>.json render    # out/<name>.mp4 (ぴったり60.00秒) と固定コメント文
 ```
 
+- 尺は **ぴったり60.00秒（1800フレーム）** に自動でそろう（余りは各カットの間に均等に足す）。書き出し後に
+  `ffprobe -v error -show_entries format=duration -of csv=p=0 out/<name>.mp4` が `60.000000` か確認する
 - sheet を見て、テロップと画像の内容が合っているか・文字のはみ出しがないかを確認
 - 書き出した mp4 をユーザーに渡す。BGM は台本に `"bgm": "bgm/xxx.mp3"` を書けば小さめに混ぜる（無ければアプリ側で付ける）
 

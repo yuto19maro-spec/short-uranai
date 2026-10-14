@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """60秒 誕生日TOP5 ショート動画レンダラー（1テーマ深掘り型）
 
-伸びている占いショートの構成を再現する縦型動画（1080x1920 / 30fps / 約60秒）。
+伸びている占いショートの構成を再現する縦型動画（1080x1920 / 30fps / ぴったり60.00秒）。
 1カット = テロップ1枚 + AI画像1枚 + ナレーション1区切り。
 
 使い方:
@@ -56,8 +56,10 @@ LINE_GAP = 1.32                 # 行送り (文字サイズ比)
 # ---------------------------------------------------------------- 尺
 PAD = 0.14                      # ナレーション後の間 (秒)
 TITLE_EXTRA = 0.35              # タイトルカットだけ少し長く見せる
-MAX_TOTAL = 59.3                # これを超えたら話速を上げて作り直す
-TARGET_TOTAL = 58.6
+VIDEO_LEN = 60.0                # 完成尺 (秒)。ぴったりこの長さで書き出す
+FIT_LO, FIT_HI = 57.8, 59.6     # ナレーションだけの合計がこの範囲に入るよう話速を調整
+FIT_TARGET = 58.8               # 調整時の狙い。残りは各カットの間に均等に足して VIDEO_LEN にそろえる
+SPEED_MIN, SPEED_MAX = 0.95, 1.6
 ZOOM = 0.07                     # 1カット中のゆっくりズーム量
 
 
@@ -160,7 +162,8 @@ def read_wav(path):
     return a
 
 
-def cut_durations(sc, voices):
+def natural_durations(sc, voices):
+    """ナレーションの長さ + 間 (引き伸ばす前)"""
     d = []
     for c, v in zip(sc["cuts"], voices):
         t = len(v) / SR + PAD
@@ -170,15 +173,24 @@ def cut_durations(sc, voices):
     return d
 
 
+def cut_durations(sc, voices):
+    """各カットの尺。余りを均等に足して合計を VIDEO_LEN ちょうどにする"""
+    d = natural_durations(sc, voices)
+    extra = VIDEO_LEN - sum(d)
+    if extra < 0:
+        fail(f"ナレーションが {sum(d):.1f} 秒あり {VIDEO_LEN:.0f} 秒に収まりません。台本を短くしてください。")
+    return [t + extra / len(d) for t in d]
+
+
 def make_voices(sc):
-    """全カットのナレーションを作り、合計が60秒に収まるよう話速を自動調整する。"""
+    """全カットのナレーションを作り、合計が FIT_LO〜FIT_HI 秒になるよう話速を自動調整する。"""
     try:
         urllib.request.urlopen(VOICEVOX_URL + "/version", timeout=5).read()
     except Exception:
         fail(f"VOICEVOX に接続できません ({VOICEVOX_URL})。VOICEVOX アプリを起動してから再実行してください。")
     os.makedirs(voice_dir(sc), exist_ok=True)
     speed = sc["voice"]["speed"]
-    for _ in range(4):
+    for _ in range(6):
         voices = []
         for i, c in enumerate(sc["cuts"]):
             p = voice_file(sc, c, speed)
@@ -186,11 +198,14 @@ def make_voices(sc):
                 with open(p, "wb") as f:
                     f.write(synth(c["say"], sc["voice"]["speaker"], speed))
             voices.append(read_wav(p))
-        total = sum(cut_durations(sc, voices))
-        print(f"話速 {speed:.2f} → 合計 {total:.1f} 秒")
-        if total <= MAX_TOTAL:
+        total = sum(natural_durations(sc, voices))
+        print(f"話速 {speed:.2f} → ナレーション合計 {total:.1f} 秒")
+        if FIT_LO <= total <= FIT_HI:
             break
-        speed = round(speed * total / TARGET_TOTAL, 3)
+        new = min(max(round(speed * total / FIT_TARGET, 3), SPEED_MIN), SPEED_MAX)
+        if new == speed:
+            break
+        speed = new
     with open(os.path.join(voice_dir(sc), "speed.txt"), "w") as f:
         f.write(str(speed))
     return voices
@@ -199,7 +214,7 @@ def make_voices(sc):
 def load_voices(sc, silent):
     if silent:
         # VOICEVOX 無しの仮尺 (1文字 0.12秒)
-        return [np.zeros(int((0.12 * len(c["say"]) + 0.2) * SR), np.float32) for c in sc["cuts"]]
+        return [np.zeros(int((0.11 * len(c["say"]) + 0.2) * SR), np.float32) for c in sc["cuts"]]
     sp = os.path.join(voice_dir(sc), "speed.txt")
     if not os.path.exists(sp):
         return make_voices(sc)
@@ -373,15 +388,14 @@ def cmd_render(sc, args):
     voices = load_voices(sc, args.silent)
     durs = cut_durations(sc, voices)
     total = sum(durs)
-    print(f"カット数 {len(durs)} / 合計 {total:.1f} 秒")
-    if total > 60:
-        print("注意: 60秒を超えています。台本を短くしてください。", file=sys.stderr)
+    print(f"カット数 {len(durs)} / 合計 {total:.2f} 秒")
 
     # 音声トラック
-    audio = np.zeros(int(total * SR) + SR, np.float32)
+    audio = np.zeros(round(total * SR), np.float32)
     t = 0.0
     for v, d in zip(voices, durs):
         i = int(t * SR)
+        v = v[:len(audio) - i]
         audio[i:i + len(v)] += v
         t += d
     if sc.get("bgm"):
