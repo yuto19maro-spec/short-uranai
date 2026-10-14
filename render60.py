@@ -331,8 +331,8 @@ def text_layer(cut):
 
 
 # ================================================================ 合成
-def frame_at(bg, alpha, rgb, p, zoom_in):
-    """p: カット内の進み 0..1"""
+def frame_at(bg, alpha, rgb, p, zoom_in, text_opacity=1.0):
+    """p: 画像の表示区間内の進み 0..1 (同じ画像が続くカットはまとめて1区間)"""
     z = ZOOM * (p if zoom_in else 1 - p)
     bh, bw = bg.shape[:2]
     cw, ch = W * (1 + z) , H * (1 + z)
@@ -343,11 +343,14 @@ def frame_at(bg, alpha, rgb, p, zoom_in):
     else:
         fr = np.asarray(Image.fromarray(bg).resize((W, H), Image.BILINEAR,
                                                    box=(x0, y0, x0 + cw, y0 + ch)))
+    if text_opacity < 1:
+        alpha, rgb = alpha * text_opacity, rgb * text_opacity
     return (fr * (1 - alpha) + rgb).astype(np.uint8)
 
 
-def prep_cut(sc, cut):
-    bg = load_bg(sc, cut["img"])
+def prep_cut(sc, cut, bg=None):
+    if bg is None:
+        bg = load_bg(sc, cut["img"])
     lay = np.asarray(text_layer(cut)).astype(np.float32) / 255
     alpha = lay[..., 3:4]
     return bg, alpha, lay[..., :3] * 255 * alpha
@@ -425,15 +428,28 @@ def cmd_render(sc, args):
                            "-c:a", "aac", "-b:a", "192k", "-t", f"{nframes / FPS:.3f}",
                            "-movflags", "+faststart", out], stdin=subprocess.PIPE)
     starts = np.cumsum([0] + durs)
+    # 同じ画像が続くカットは1つの区間としてズームを途切れさせない
+    group, gstart, gend = [], {}, {}
+    for k, c in enumerate(sc["cuts"]):
+        if k == 0:
+            group.append(0)
+        else:
+            group.append(group[-1] + (c["img"] != sc["cuts"][k - 1]["img"]))
+        gstart.setdefault(group[k], starts[k])
+        gend[group[k]] = starts[k + 1]
     ci, cache = -1, None
     for n in range(nframes):
         tt = n / FPS
         k = min(int(np.searchsorted(starts, tt, side="right")) - 1, len(durs) - 1)
         if k != ci:
-            ci, cache = k, prep_cut(sc, sc["cuts"][k])
+            same = cache is not None and sc["cuts"][k]["img"] == sc["cuts"][ci]["img"]
+            ci, cache = k, prep_cut(sc, sc["cuts"][k], cache[0] if same else None)
             print(f"\rカット {k + 1}/{len(durs)}", end="", flush=True)
-        p = (tt - starts[k]) / durs[k]
-        ff.stdin.write(frame_at(*cache, p, k % 2 == 0).tobytes())
+        g = group[k]
+        p = (tt - gstart[g]) / (gend[g] - gstart[g])
+        # タイトルは画像が先に出て、0.12秒後から0.2秒かけて文字がふわっと出る
+        op = min(max((tt - starts[k] - 0.12) / 0.2, 0.0), 1.0) if "title" in sc["cuts"][k] else 1.0
+        ff.stdin.write(frame_at(*cache, p, g % 2 == 0, op).tobytes())
     ff.stdin.close()
     ff.wait()
     print("\n" + out)
