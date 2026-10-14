@@ -415,8 +415,9 @@ def draw_lines(lines, sizes, stroke, base_colors, weight):
 def text_layer(cut):
     if "title" in cut:
         lines = cut["title"]
+        colors = cut.get("colors", TITLE_COLORS)   # 例: ["r", "y", "w"] (1行目を赤・3行目を白)
         return draw_lines(lines, TITLE_SIZES[:len(lines)], TITLE_STROKE,
-                          TITLE_COLORS[:len(lines)], "Black")
+                          colors[:len(lines)], "Black")
     lines = cut["text"].split("\n")
     return draw_lines(lines, [BODY_SIZE] * len(lines), BODY_STROKE, ["w"] * len(lines), "Black")
 
