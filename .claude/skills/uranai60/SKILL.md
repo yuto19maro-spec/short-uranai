@@ -78,6 +78,9 @@ python3 render60.py scripts60/<name>.json render    # out/<name>.mp4 (ぴった�
 
 ## 4. 投稿時に使うもの（ユーザーに伝える）
 
+`out/<name>_post.txt` に YouTube・Instagram・TikTok の投稿文（タイトル・説明欄・キャプション・投稿者コメント）がまとめて出る（`render` のとき自動、`post` コマンドで単独でも出せる）。これをユーザーに渡す。
+
+
 - YouTubeタイトル: 台本の `youtube_title`
 - **投稿者コメント（固定）**: `out/<name>_pinned_comment.txt`。1位の答え＋「コメント欄に「開運ワード」と書き込むと〜」＋「他の人のコメントにいいねすると〜」の形。投稿したらすぐ書いて固定する（`scripts60/TEMPLATE.md` の「8. 投稿のしかた」）
 - 説明欄は参考チャンネルでは空。`VOICEVOX:<話者名>` のクレジットだけ書く（VOICEVOX の利用規約）。ハッシュタグはタイトルに入っている

@@ -10,6 +10,7 @@
     python3 render60.py scripts60/<name>.json sheet             # 全カットの静止画一覧 out/<name>_sheet.jpg
     python3 render60.py scripts60/<name>.json render            # 本番 out/<name>.mp4
     python3 render60.py scripts60/<name>.json render --silent   # VOICEVOX 無しで尺だけ仮置きして確認用に書き出す
+    python3 render60.py scripts60/<name>.json post              # 投稿文 (YouTube/Instagram/TikTok) だけ書き出す
 
 台本(JSON)の書式は README60.md を参照。
 """
@@ -556,23 +557,50 @@ def cmd_render(sc, args):
     ff.stdin.close()
     ff.wait()
     print("\n" + out)
+    write_post(sc)
+
+
+def write_post(sc):
+    """投稿文 (YouTube / Instagram / TikTok) をまとめて out/<name>_post.txt に書き出す"""
+    os.makedirs(os.path.join(ROOT, "out"), exist_ok=True)
     if sc.get("pinned_comment"):
         cpath = os.path.join(ROOT, "out", sc["name"] + "_pinned_comment.txt")
         with open(cpath, "w", encoding="utf-8") as f:
             f.write(sc["pinned_comment"] + "\n")
-        print("固定コメント: " + cpath)
+    parts = [
+        ("YouTube タイトル", sc.get("youtube_title")),
+        ("YouTube 説明欄", sc.get("youtube_description", "VOICEVOX:冥鳴ひまり")),
+        ("YouTube 投稿者コメント（投稿したらすぐ書いて固定）", sc.get("pinned_comment")),
+        ("Instagram キャプション", sc.get("instagram_caption")),
+        ("Instagram 投稿者コメント（固定）", sc.get("pinned_comment")),
+        ("TikTok キャプション", sc.get("tiktok_caption")),
+        ("TikTok 投稿者コメント（固定・150文字以内）", sc.get("tiktok_pinned_comment")),
+    ]
+    path = os.path.join(ROOT, "out", sc["name"] + "_post.txt")
+    with open(path, "w", encoding="utf-8") as f:
+        for head, body in parts:
+            if body:
+                f.write(f"■ {head}\n{body}\n\n")
+    tk = sc.get("tiktok_pinned_comment") or ""
+    if len(tk) > 150:
+        print(f"注意: TikTok の固定コメントが {len(tk)} 文字あります（150文字まで）", file=sys.stderr)
+    print("投稿文: " + path)
+
+
+def cmd_post(sc, args):
+    write_post(sc)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("script")
-    ap.add_argument("command", choices=["images", "kana", "voice", "sheet", "render"])
+    ap.add_argument("command", choices=["images", "kana", "voice", "sheet", "render", "post"])
     ap.add_argument("-o", "--output")
     ap.add_argument("--silent", action="store_true", help="VOICEVOX 無しで仮の尺で書き出す")
     args = ap.parse_args()
     sc = load_script(args.script)
     {"images": cmd_images, "kana": cmd_kana, "voice": cmd_voice, "sheet": cmd_sheet,
-     "render": cmd_render}[args.command](sc, args)
+     "render": cmd_render, "post": cmd_post}[args.command](sc, args)
 
 
 if __name__ == "__main__":
