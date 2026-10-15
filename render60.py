@@ -83,6 +83,8 @@ def load_script(path):
         with open(common_path, encoding="utf-8") as f:
             common = json.load(f)["images"]
     sc["_common"] = common
+    sc.setdefault("images", {})
+    sc.setdefault("videos", {})     # {キー: Pixabay の検索ワード}。そのキーのカットは動画が背景になる
     for i, c in enumerate(sc["cuts"]):
         if "img" not in c:
             fail(f"カット{i} に img がありません")
@@ -114,6 +116,15 @@ def image_path(sc, key):
         if os.path.exists(base + ext):
             return base + ext
     return None
+
+
+def video_path(sc, key):
+    """Pixabay などの動画素材 (pixabay60.py fetch で取得)。あれば静止画より優先して背景に使う"""
+    if key.startswith("common/"):
+        p = os.path.join(ROOT, "assets60", "common", key[7:] + ".mp4")
+    else:
+        p = os.path.join(ROOT, "assets60", sc["name"], key + ".mp4")
+    return p if os.path.exists(p) else None
 
 
 def all_image_keys(sc):
@@ -342,7 +353,42 @@ def cover(im, w, h):
     return im.crop((x, y, x + w, y + h))
 
 
-def load_bg(sc, key):
+class VideoBG:
+    """動画の背景。1080x1920 に切り抜いた1フレームずつを順に返す (短い動画はループ)"""
+
+    def __init__(self, path):
+        vf = f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={FPS},format=rgb24"
+        self.proc = subprocess.Popen(["ffmpeg", "-v", "error", "-stream_loop", "-1", "-i", path, "-an",
+                                      "-vf", vf, "-f", "rawvideo", "-"], stdout=subprocess.PIPE)
+        self.last = np.zeros((H, W, 3), np.uint8)
+
+    def read(self):
+        b = self.proc.stdout.read(W * H * 3)
+        if len(b) == W * H * 3:
+            self.last = np.frombuffer(b, np.uint8).reshape(H, W, 3)
+        return self.last
+
+    def close(self):
+        self.proc.kill()
+        self.proc.wait()
+
+
+def video_still(path, t=1.0):
+    vf = f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}"
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", str(t), "-i", path, "-frames:v", "1", "-vf", vf,
+                          "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True).stdout
+    if len(raw) != W * H * 3:
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-frames:v", "1", "-vf", vf,
+                              "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True).stdout
+    return Image.fromarray(np.frombuffer(raw, np.uint8).reshape(H, W, 3))
+
+
+def load_bg(sc, key, still=False):
+    v = video_path(sc, key)
+    if v:
+        if still:
+            return np.asarray(cover(video_still(v), int(W * (1 + ZOOM)), int(H * (1 + ZOOM))))
+        return VideoBG(v)
     p = image_path(sc, key)
     im = Image.open(p) if p else placeholder(key)
     # ズームで切り抜くので少し大きめに用意
@@ -425,6 +471,11 @@ def text_layer(cut):
 # ================================================================ 合成
 def frame_at(bg, alpha, rgb, p, zoom_in, text_opacity=1.0):
     """p: 画像の表示区間内の進み 0..1 (同じ画像が続くカットはまとめて1区間)"""
+    if isinstance(bg, VideoBG):      # 動画はズームせずそのまま流す
+        fr = bg.read()
+        if text_opacity < 1:
+            alpha, rgb = alpha * text_opacity, rgb * text_opacity
+        return (fr * (1 - alpha) + rgb).astype(np.uint8)
     z = ZOOM * (p if zoom_in else 1 - p)
     bh, bw = bg.shape[:2]
     cw, ch = W * (1 + z) , H * (1 + z)
@@ -440,9 +491,9 @@ def frame_at(bg, alpha, rgb, p, zoom_in, text_opacity=1.0):
     return (fr * (1 - alpha) + rgb).astype(np.uint8)
 
 
-def prep_cut(sc, cut, bg=None):
+def prep_cut(sc, cut, bg=None, still=False):
     if bg is None:
-        bg = load_bg(sc, cut["img"])
+        bg = load_bg(sc, cut["img"], still)
     lay = np.asarray(text_layer(cut)).astype(np.float32) / 255
     alpha = lay[..., 3:4]
     return bg, alpha, lay[..., :3] * 255 * alpha
@@ -452,12 +503,21 @@ def cmd_images(sc, args):
     missing = 0
     print(f"画像の保存先: assets60/{sc['name']}/<名前>.png  (common/～ は assets60/common/<名前>.png)")
     print(f"共通スタイル: {sc.get('style', '')}\n")
+    vids = []
     for k in all_image_keys(sc):
+        if k in sc["videos"]:
+            vids.append(k)
+            continue
         p = image_path(sc, k)
         mark = "OK " if p else "未 "
         missing += p is None
         print(f"[{mark}] {k}\n      {image_prompt(sc, k)}")
     print(f"\n未生成: {missing} 枚")
+    if vids:
+        vmiss = [k for k in vids if not video_path(sc, k)]
+        print(f"\n動画のカット {len(vids)} 個（AI画像は作らなくてよい）: " + ", ".join(vids))
+        if vmiss:
+            print(f"  未取得 {len(vmiss)} 個 → python3 pixabay60.py fetch scripts60/{sc['name']}.json")
 
 
 def cmd_kana(sc, args):
@@ -484,8 +544,10 @@ def cmd_sheet(sc, args):
     rows = (len(sc["cuts"]) + cols - 1) // cols
     sheet = Image.new("RGB", (cols * tw, rows * th))
     for i, c in enumerate(sc["cuts"]):
-        bg, a, rgb = prep_cut(sc, c)
+        bg, a, rgb = prep_cut(sc, c, still=True)
         fr = Image.fromarray(frame_at(bg, a, rgb, 0.5, True)).resize((tw, th), Image.LANCZOS)
+        if video_path(sc, c["img"]):
+            ImageDraw.Draw(fr).text((6, th - 22), "VIDEO", fill=(255, 220, 0), font=font(16, "Bold"))
         sheet.paste(fr, ((i % cols) * tw, (i // cols) * th))
     out = os.path.join(ROOT, "out", f"{sc['name']}_sheet.jpg")
     sheet.save(out, quality=88)
@@ -548,6 +610,8 @@ def cmd_render(sc, args):
         k = min(int(np.searchsorted(starts, tt, side="right")) - 1, len(durs) - 1)
         if k != ci:
             same = cache is not None and sc["cuts"][k]["img"] == sc["cuts"][ci]["img"]
+            if cache is not None and not same and isinstance(cache[0], VideoBG):
+                cache[0].close()
             ci, cache = k, prep_cut(sc, sc["cuts"][k], cache[0] if same else None)
             print(f"\rカット {k + 1}/{len(durs)}", end="", flush=True)
         g = group[k]
@@ -555,6 +619,8 @@ def cmd_render(sc, args):
         # タイトルは画像が先に出て、0.12秒後から0.2秒かけて文字がふわっと出る
         op = min(max((tt - starts[k] - 0.12) / 0.2, 0.0), 1.0) if "title" in sc["cuts"][k] else 1.0
         ff.stdin.write(frame_at(*cache, p, g % 2 == 0, op).tobytes())
+    if cache is not None and isinstance(cache[0], VideoBG):
+        cache[0].close()
     ff.stdin.close()
     ff.wait()
     print("\n" + out)

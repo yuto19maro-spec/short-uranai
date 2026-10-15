@@ -46,6 +46,16 @@ python3 render60.py scripts60/<name>.json images
   何枚かずつまとめて頼んでもよい。全部そろったら `images` をもう一度実行して `未生成: 0 枚` を確認
 - 人物の顔・手が崩れた画像、文字が入った画像は作り直す
 
+## 1.5 動画素材（台本に "videos" があるときだけ）
+
+```bash
+python3 pixabay60.py fetch scripts60/<name>.json    # Pixabay から動画をダウンロード (要: 環境変数 PIXABAY_API_KEY)
+```
+
+- `images` の一覧で「動画のカット」と出たキーは AI画像を作らなくてよい
+- `[なし]` と出たカットは検索ワードを変えて台本の `"videos"` を直す（`python3 pixabay60.py search "ワード"` で候補を確認できる）。直したらユーザーに報告する
+- キーが無いと言われたら、ユーザーに PowerShell で `setx PIXABAY_API_KEY "キー"` を実行してもらい、ターミナル（チャット）を開き直す
+
 ## 2. ナレーション（このPCの VOICEVOX）
 
 VOICEVOX アプリ（エンジン: http://127.0.0.1:50021）を起動してから:

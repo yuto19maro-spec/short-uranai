@@ -51,3 +51,19 @@ python3 render60.py scripts60/<name>.json render    # 書き出し
 - `{"text": ..., "cont": true}` … 前のカットと同じ文として続けて読む（文ごとにまとめて合成し、テロップの切り替わり位置で音声を切り分ける）
 - テロップ内の `{ }` は黄色、`[ ]` は赤
 - カットの長さはナレーションの長さで自動に決まる。話速を自動調整してナレーション合計を約58〜59.6秒にし、残りを各カットの間に均等に足して **ぴったり60.00秒** にする
+
+## 背景に動画を使う（Pixabay）
+
+`"videos": {"キー": "英語の検索ワード"}` を台本に書くと、そのキーのカットは AI画像の代わりに Pixabay の動画が背景になる。
+
+```bash
+python3 pixabay60.py test                          # APIキーが動くか確認
+python3 pixabay60.py search "misty lake sunrise"   # 候補を見る（縦長を優先）
+python3 pixabay60.py fetch scripts60/<name>.json   # "videos" のカットの動画をまとめてダウンロード → assets60/<name>/<キー>.mp4
+```
+
+- APIキーは環境変数 `PIXABAY_API_KEY`（Windows: `setx PIXABAY_API_KEY "キー"`）。リポジトリやチャットには書かない
+- 動画のファイルがあれば動画、無ければ AI画像、どちらも無ければ仮の背景で描画する
+- 横長の動画は中央を縦に切り抜く。短い動画はループする。動画のカットはズームしない
+- 取得した動画の出典は `assets60/<name>/<キー>.pixabay.json` に残る（Pixabay Content License: 商用利用可・クレジット不要）
+- 全カットを `"videos"` にすれば、風景動画だけの動画も作れる（将来の風景系チャンネル用）
