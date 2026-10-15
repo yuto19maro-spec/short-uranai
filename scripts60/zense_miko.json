@@ -44,6 +44,13 @@
     "r1_guide": "A woman holding a glowing lantern leading a line of people along a dark forest path toward a bright shrine",
     "r1_comment": "Hands pressed together in prayer at a shrine with soft golden bokeh and falling petals"
   },
+  "videos": {
+    "intro_shrine": "japanese shrine forest mist",
+    "r5_day": "koi pond japanese garden",
+    "r4_day": "autumn maple lake mist",
+    "r3_day": "bamboo forest sunlight",
+    "r2_day": "waterfall rainbow mist"
+  },
   "cuts": [
     {"title": ["実は前世が", "“巫女”だった", "誕生日TOP5"], "say": "実は前世が、みこだった誕生日トップファイブ", "img": "title"},
     {"text": "この誕生日の人は\n{前世}で", "img": "intro_shrine"},

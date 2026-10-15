@@ -44,6 +44,13 @@
     "r1_chosen": "A beam of golden light falling from the sky onto a woman with open arms as golden petals swirl around her, chosen one",
     "r1_comment": "Hands pressed together in prayer holding a glowing golden coin, soft golden bokeh background"
   },
+  "videos": {
+    "teaser": "gold coins falling",
+    "r5_day": "lake sunrise golden light",
+    "r4_day": "golden wheat field wind",
+    "r3_day": "japanese garden pond sunset",
+    "r2_day": "waterfall rainbow mist"
+  },
   "cuts": [
     {"title": ["“金運の神様”に", "愛される", "誕生日TOP5"], "say": "金運の神様に愛される誕生日トップファイブ", "img": "title"},
     {"text": "誕生日にはその人の\n{金運の器}が", "say": "誕生日には、その人の金運の器が", "img": "intro_vessel"},
