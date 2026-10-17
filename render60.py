@@ -356,8 +356,9 @@ def cover(im, w, h):
 class VideoBG:
     """動画の背景。1080x1920 に切り抜いた1フレームずつを順に返す (短い動画はループ)"""
 
-    def __init__(self, path):
+    def __init__(self, path, dim=0.0):
         vf = f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={FPS},format=rgb24"
+        self.dim = dim
         self.proc = subprocess.Popen(["ffmpeg", "-v", "error", "-stream_loop", "-1", "-i", path, "-an",
                                       "-vf", vf, "-f", "rawvideo", "-"], stdout=subprocess.PIPE)
         self.last = np.zeros((H, W, 3), np.uint8)
@@ -366,6 +367,8 @@ class VideoBG:
         b = self.proc.stdout.read(W * H * 3)
         if len(b) == W * H * 3:
             self.last = np.frombuffer(b, np.uint8).reshape(H, W, 3)
+            if self.dim:
+                self.last = (self.last * (1 - self.dim)).astype(np.uint8)
         return self.last
 
     def close(self):
@@ -386,9 +389,11 @@ def video_still(path, t=1.0):
 def load_bg(sc, key, still=False):
     v = video_path(sc, key)
     if v:
+        dim = float(sc.get("bg_dim", 0))    # 実写の動画は明るいことが多いので少し暗くしてテロップを読みやすくする
         if still:
-            return np.asarray(cover(video_still(v), int(W * (1 + ZOOM)), int(H * (1 + ZOOM))))
-        return VideoBG(v)
+            a = np.asarray(cover(video_still(v), int(W * (1 + ZOOM)), int(H * (1 + ZOOM))))
+            return (a * (1 - dim)).astype(np.uint8) if dim else a
+        return VideoBG(v, dim)
     p = image_path(sc, key)
     im = Image.open(p) if p else placeholder(key)
     # ズームで切り抜くので少し大きめに用意

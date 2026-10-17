@@ -66,4 +66,5 @@ python3 pixabay60.py fetch scripts60/<name>.json   # "videos" のカットの動
 - 動画のファイルがあれば動画、無ければ AI画像、どちらも無ければ仮の背景で描画する
 - 横長の動画は中央を縦に切り抜く。短い動画はループする。動画のカットはズームしない
 - 取得した動画の出典は `assets60/<name>/<キー>.pixabay.json` に残る（Pixabay Content License: 商用利用可・クレジット不要）
-- 全カットを `"videos"` にすれば、風景動画だけの動画も作れる（将来の風景系チャンネル用）
+- 全カットを `"videos"` にすれば、実写動画だけの動画も作れる（例: `scripts60/senzo_real.json`。`TEMPLATE.md` の「9. リアル動画版」）
+- `"bg_dim": 0.18` のように書くと、動画の背景を少し暗くしてテロップを読みやすくする

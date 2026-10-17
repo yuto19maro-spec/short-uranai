@@ -224,3 +224,15 @@
 ### 投稿ペース
 - 2025/5/20〜8/10 の約80日で38本（ほぼ毎日1本）
 - 序盤の「サイン5選」系は伸びず、誕生日TOP5に寄せてから100万回超えが連発した
+
+## 9. リアル動画版（全カット Pixabay の実写動画・青山龍星）
+
+AI画像を使わず、全カットを Pixabay の実写動画にする版。台本に `"format": "real"` を付ける（例: `senzo_real.json`）。
+構成・テロップ・ナレーションのルールは上と同じ。違うのは次の点だけ:
+
+- `"images": {}`、全カットのキーを `"videos": {"キー": "英語の検索ワード"}` に書く。CTA も専用キー（cta_friend / cta_comment / cta_stop / cta_save）で動画にする
+- 検索ワードは2〜3語の英語で、Pixabay に縦長の素材が多い自然・光・空・水・手元・後ろ姿を選ぶ（例: `sun rays clouds` `praying hands` `woman walking beach`）。
+  人の顔のアップや特定の場面（事故・病院など）は避ける
+- `"bg_dim": 0.18` で動画を少し暗くしてテロップを読みやすくする
+- 音声は VOICEVOX の **青山龍星**（`"voice": {"speaker": 13, ...}`。ID はローカルの /speakers で確認）。説明欄のクレジットは `VOICEVOX:青山龍星`
+- 画像の生成（Codex）は不要。`python3 pixabay60.py fetch` で全カットの動画をそろえる

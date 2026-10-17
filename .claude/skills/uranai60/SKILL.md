@@ -48,6 +48,8 @@ python3 render60.py scripts60/<name>.json images
 
 ## 1.5 動画素材（台本に "videos" があるときだけ）
 
+台本に `"format": "real"` があるときは全カットが動画（AI画像は作らない）。
+
 ```bash
 python3 pixabay60.py fetch scripts60/<name>.json    # Pixabay から動画をダウンロード (要: 環境変数 PIXABAY_API_KEY)
 ```
@@ -68,7 +70,7 @@ python3 render60.py scripts60/<name>.json voice
 - kana を見て誤読があれば、そのカットに `say` を足して直す（直し方は `scripts60/TEMPLATE.md` の「ナレーションのルール」）
 - 話速が 1.3 を超えたら注意が出る。その場合は台本の文字数を減らすのが先（クラウドのセッションに相談してよい）
 
-- 話者は台本の `voice.speaker`（既定 14 = 冥鳴ひまり ノーマル。落ち着いた女性の声で参考動画に近い）。
+- 話者は台本の `voice.speaker`（既定 14 = 冥鳴ひまり ノーマル。リアル動画版 `*_real.json` は 13 = 青山龍星 ノーマル）。
   ID がこのPCの VOICEVOX と違う場合は `curl http://127.0.0.1:50021/speakers` で確認して台本を直す
 - ナレーションの合計が約58〜59.6秒になるよう話速を自動調整する（長ければ速く、短ければゆっくり）
 - 読み間違いがあれば、そのカットに `"say"`（読み上げ用のひらがな表記）を足して再実行。
