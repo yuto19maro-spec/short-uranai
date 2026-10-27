@@ -1,12 +1,13 @@
 ---
 name: seiza
-description: 星座ランキングTOP3の60秒ショート動画（AI画像＋VOICEVOXナレーション）の台本を作る。ユーザーが「星座ランキング」「星座ランキング頼む」「星座TOP3」などと言ったら必ずこれを使う。「星座」が入っていれば誕生日ランキング（ranking スキル）ではなくこちら。
+description: 星座ランキングTOP3の60秒ショート動画（AI画像＋VOICEVOXナレーション）の台本を作り、ローカルPCで動画に書き出す。ユーザーが「星座ランキング」「星座ランキング頼む」「星座TOP3」などと言ったら必ずこれを使う。「星座」が入っていれば誕生日ランキング（ranking スキル）ではなくこちら。
 ---
 
 # 星座ランキングTOP3（60秒）を作る
 
-`render60.py` の60秒型に乗せる。テーマを決めて台本 `scripts60/seiza_<name>.json` を書き、push する。
-動画の書き出し（画像・音声）はローカルPCで `uranai60` スキルの手順どおり行う。
+`render60.py` の60秒型に乗せる。
+- 台本を作る（クラウドでもローカルでもよい）→ 1〜4節
+- 動画に書き出す（ローカルPC。Codex＋VOICEVOX）→ 5節。「seiza_〇〇の動画を作って」と言われたらここから
 見本の台本: `scripts60/seiza_sabishigari.json`（実は寂しがり屋な星座TOP3）。台本の書式・テロップのルールは `README60.md` と `scripts60/TEMPLATE.md` の4〜4.5節・6節・8節に従う。
 
 ## 1. テーマ
@@ -67,3 +68,25 @@ python3 render60.py scripts60/seiza_<name>.json render --silent     # 合計 60.
 git pull をしてから、scripts60/seiza_<name>.json の動画を uranai60 スキルの手順で作って。
 画像はCodexで生成、ナレーションはVOICEVOXでお願い。
 ```
+
+## 5. 動画に書き出す（ローカルPC）
+
+基本の手順は `uranai60` スキル（0〜4節）と同じ。`render60.py` のレイアウト・尺の決め方は変えない。星座型で違う所だけ下に書く。
+
+```bash
+git pull                       # 台本が別ブランチにあるときは git pull origin <ブランチ名>
+./setup60.sh
+python3 render60.py scripts60/seiza_<name>.json images    # → Codex で画像を作る（uranai60 の1節）
+python3 render60.py scripts60/seiza_<name>.json kana      # 読みの確認
+python3 render60.py scripts60/seiza_<name>.json voice     # VOICEVOX（冥鳴ひまり 14）
+python3 render60.py scripts60/seiza_<name>.json sheet
+python3 render60.py scripts60/seiza_<name>.json render    # out/seiza_<name>.mp4（60.00秒）＋ 投稿文
+```
+
+星座型で確認すること:
+- **画像**: 各順位の最後の「星座線が光る夜空」は、その星座の形として不自然でなければよい（正確な星の配置までは求めない）。文字や星座記号（♏など）が入っていたら作り直す
+- **kana**: 星座名が正しく読まれているか（さそりざ・みずがめざ など）。「第3位」が「だいさんい」になっているか。「トップスリー」と読まれているか。誤読は `say` で直す
+- **読み上げ文字数**: 星座型は約350〜400文字。話速が 0.95 を下回るほどゆっくりなら、各順位に「なぜなら」の1枚を足すよう台本を直す（直したらユーザーに報告）
+- **sheet**: 「その星座は{〇〇座}」の黄色・ランキング順・星座名と画像が合っているか
+- **投稿文**: `out/seiza_<name>_post.txt` のハッシュタグが `#星座占い`（`#誕生日占い` ではない）、固定コメントが「第1位は…〇〇座。」になっているか
+- 書き出した mp4 と投稿文をユーザーに渡す。画像・音声・動画はコミットしない。台本を直したときだけコミットして push する

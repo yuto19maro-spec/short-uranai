@@ -1,6 +1,6 @@
 ---
 name: uranai60
-description: 60秒の「誕生日TOP5」1テーマ深掘り型ショート動画（AI画像＋VOICEVOXナレーション）を作る。「60秒の動画作って」「scripts60 の動画を作って」「前世ランキングの動画」など、scripts60/ の台本から動画を書き出すときに使う。18.6秒の4タイトル型（ranking スキル）とは別物。
+description: 60秒の「誕生日TOP5」1テーマ深掘り型ショート動画（AI画像＋VOICEVOXナレーション）を作る。「60秒の動画作って」「scripts60 の動画を作って」「前世ランキングの動画」など、scripts60/ の台本から動画を書き出すときに使う。18.6秒の4タイトル型（ranking スキル）とは別物。星座TOP3の台本（scripts60/seiza_*.json）は seiza スキルを使う。
 ---
 
 # 60秒 誕生日TOP5 動画を作る（ローカルPC用）
@@ -9,6 +9,8 @@ description: 60秒の「誕生日TOP5」1テーマ深掘り型ショート動画
 台本は `scripts60/<name>.json` に用意済み（クラウドのセッションで作って push してある）。
 このスキルは **ローカルPC** で、Codex（画像）と VOICEVOX（音声）を使って動画を書き出す。
 `render60.py` のレイアウト・尺の決め方は確定版なので、頼まれない限り変更しない。変えるのは台本と画像だけ。
+
+星座ランキング（`scripts60/seiza_*.json`）は `.claude/skills/seiza/SKILL.md` の5節に従う（手順はこのスキルと同じで、確認項目が少し違う）。
 
 新しい台本を書くとき（台本を頼まれたとき）は **`scripts60/TEMPLATE.md`（台本の型）** に従う。根拠データは `scripts60/REFERENCE_TOP4.md`。
 
