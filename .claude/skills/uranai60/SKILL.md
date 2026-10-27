@@ -12,6 +12,8 @@ description: 60秒の「誕生日TOP5」1テーマ深掘り型ショート動画
 
 新しい台本を書くとき（台本を頼まれたとき）は **`scripts60/TEMPLATE.md`（台本の型）** に従う。根拠データは `scripts60/REFERENCE_TOP4.md`。
 
+**人生の気づき・開運の「〇〇5選」型**（台本に `"format": "kizuki"`、例: `scripts60/okane_yoru.json`）も同じ手順・同じ `render60.py` で書き出す。台本の型は `scripts60/TEMPLATE_KIZUKI.md`。この型には順位・日付・「この誕生日はコメント欄」が無いので、誕生日用のチェック（日付の読み・1位の答え）は飛ばし、固定コメントは「いくつ当てはまりましたか？」で始まる形になる。
+
 ## 複数のチャットで同時に作るとき
 
 動画ごとのファイル（`scripts60/<name>.json`・`assets60/<name>/`・`work/<name>/`・`out/<name>*`）は分かれているので、
